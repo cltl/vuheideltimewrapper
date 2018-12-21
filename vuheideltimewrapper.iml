@@ -11,7 +11,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: org.apache.uima:uimaj-core:2.8.1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.uima:uimaj-core:2.8.1" level="project" />
     <orderEntry type="library" name="Maven: ant:ant:1.6.5" level="project" />
     <orderEntry type="library" name="Maven: com.github.cltl:KafSaxParser:v3.1.2" level="project" />
     <orderEntry type="library" name="Maven: com.github.heideltime:heideltime:2.2.1" level="project" />

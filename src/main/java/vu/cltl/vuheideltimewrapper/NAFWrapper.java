@@ -25,14 +25,18 @@ public class NAFWrapper{
 	private KafSaxParser kaf;
 	private HashMap<String,String> mapping;
 	private HashMap<String,HashSet<String>> exceptions;
+	private HashMap<String, ArrayList<KafWordForm>> sentenceMap;
 	final String DELIMITER = "\t";
 	
 	NAFWrapper(KafSaxParser kaf, String mappingFile){
 		this.kaf = kaf;
+		sentenceMap = new HashMap<>();
         initMapping(mappingFile);
-
 	}
-	
+
+    public HashMap<String, ArrayList<KafWordForm>> getSentenceMap() {
+        return sentenceMap;
+    }
 
     private void initMapping(String file){
    		mapping = new HashMap<String,String>();
@@ -172,11 +176,14 @@ public class NAFWrapper{
 			if (!wordForm.getSent().equalsIgnoreCase(sentenceId)) {
 				if (!sentenceId.isEmpty()) {
 					sentences.put(sentenceId, sentence);
+                    sentence = new ArrayList<>();
 				}
-				sentence = new ArrayList<>();
+				else {
+                }
+                sentenceId = wordForm.getSent();
 			}
-			sentence.add(wordForm);
-		}
+            sentence.add(wordForm);
+        }
 		if (!sentenceId.isEmpty()) {
 			sentences.put(sentenceId, sentence);
 		}
@@ -200,10 +207,11 @@ public class NAFWrapper{
 
 		// grab the document text
 		String docText = jcas.getDocumentText();
-		HashMap<String, ArrayList<KafWordForm>> sentenceMap = getSentences();
-		for (Map.Entry<String, ArrayList<KafWordForm>> entry : sentenceMap.entrySet()) {
-			System.out.println("Key = " + entry.getKey() +
-					", Value = " + entry.getValue());
+		sentenceMap = getSentences();
+        //System.out.println("sentenceMap.size() = " + sentenceMap.size());
+        for (Map.Entry<String, ArrayList<KafWordForm>> entry : sentenceMap.entrySet()) {
+			//System.out.println("Key = " + entry.getKey() +
+			//		", Value = " + entry.getValue());
 			ArrayList<KafWordForm> sentence = entry.getValue();
 			for (int i = 0; i < sentence.size(); i++) {
 				KafWordForm kafWordForm = sentence.get(i);
@@ -242,26 +250,14 @@ public class NAFWrapper{
 		}
 	}
 	
-	public void addTimex(int sentence, int begin, int end, String value){
+	public void addTimex(int sentence, String value){
 		KafTimex time = new KafTimex();
 		time.setValue(value);
-		// @TODO Need to add the span here....
-/*		List<WF> wfs = kaf.getWFsBySent(sentence);
-		List<WF> wfSpan = new ArrayList<WF>();
-		for (WF wf:wfs){
-			int offset = wf.getOffset();
-			if (offset >= begin && offset < end){
-				wfSpan.add(wf);
-			}
-			else{
-				//check if the identified timex is a substring of the wf
-				int endoff = offset + wf.getLength();
-				if (offset < begin && endoff >= end){
-					wfSpan.add(wf);
-				}
-			}
-		}
-		time.setSpan(KAFDocument.newWFSpan(wfSpan));*/
+		ArrayList<KafWordForm> sentenceArray = sentenceMap.get(new Integer(sentence).toString());
+        for (int i = 0; i < sentenceArray.size(); i++) {
+            KafWordForm kafWordForm = sentenceArray.get(i);
+            time.addSpan(kafWordForm.getWid());
+        }
 	}
 	
     private String getTimexFormat(Calendar cal){

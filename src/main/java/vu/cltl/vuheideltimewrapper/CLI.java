@@ -59,7 +59,7 @@ public class CLI {
             }
         }
     }
-    static String testargs = "--naf-file /Code/vu/newsreader/vuheideltimewrapper/example/wikinews_1173_nl.input.naf --mapping ../lib/alpino-to-treetagger.csv --config ../conf/config.props";
+    static String testargs = "--naf-file /Code/vu/newsreader/vuheideltimewrapper/example/wikinews_1173_nl.input.naf --mapping /Code/vu/newsreader/vuheideltimewrapper/lib/alpino-to-treetagger.csv --config /Code/vu/newsreader/vuheideltimewrapper/conf/config.props";
     static public void main (String [] args) {
                 if (args.length == 0) {
                     args = testargs.split(" ");
@@ -184,6 +184,9 @@ public class CLI {
     static void runHeildelTime (KafSaxParser kafSaxParser) {
         try {
             String lang = kafSaxParser.getLanguage();
+            System.out.println("lang = " + lang);
+            System.out.println("mappingFile = " + mappingFile);
+            System.out.println("configFile = " + configFile);
 
             VuNafHeideltime time = new VuNafHeideltime(lang, mappingFile, configFile);
 

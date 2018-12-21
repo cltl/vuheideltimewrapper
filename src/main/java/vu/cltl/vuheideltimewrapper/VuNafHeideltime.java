@@ -103,7 +103,7 @@ public class VuNafHeideltime {
    		// set doIntervalTagging flag
    		this.doIntervalTagging = true;
 
-   		initialize(this.language, this.documentType,configPath);
+   		initialize(this.language, this.documentType, configPath);
    	}
 
 
@@ -115,7 +115,7 @@ public class VuNafHeideltime {
    	 *
    	 */
    	public void initialize(Language language, DocumentType typeToProcess, String configPath){
-   		logger.log(Level.INFO, "IXAPipeHeidelTime initialized with language " + this.language.getName());
+   		logger.log(Level.INFO, "VUHeidelTime initialized with language " + this.language.getName());
 
    		// read in configuration in case it's not yet initialized
    		if(!Config.isInitialized()) {
@@ -146,14 +146,25 @@ public class VuNafHeideltime {
    													.getClassLoader()
    													.getResource(
    															Config.get(Config.TYPESYSTEMHOME)))),
-   					UIMAFramework
+
+                    UIMAFramework
+                       							.getXMLParser()
+                       							.parseTypeSystemDescription(
+                       									new XMLInputSource(
+                       											this.getClass()
+                       													.getClassLoader()
+                       													.getResource(
+                       															Config.get(Config.TYPESYSTEMHOME)))),
+                 /*  Piek: this initialisation does not work. It gives a null pointer exception during run time. I replaced it by TYPESYSTEMHOME which isnow in here twice.
+                     Doing this no longer raises the exeption.
+                     UIMAFramework
    							.getXMLParser()
    							.parseTypeSystemDescription(
    									new XMLInputSource(
    											this.getClass()
    													.getClassLoader()
    													.getResource(
-   															Config.get(Config.TYPESYSTEMHOME_DKPRO)))) };
+   															Config.get(Config.TYPESYSTEMHOME_DKPRO))))*/ };
    			jcasFactory = new JCasFactoryImpl(descriptions);
    			logger.log(Level.INFO, "JCas factory initialized");
    		} catch (Exception e) {
@@ -363,12 +374,9 @@ public class VuNafHeideltime {
    		for(Integer begin : forwardTimexes.navigableKeySet()) {
    			Timex3 t = (Timex3) forwardTimexes.get(begin);
    			if (!timexesToSkip.contains(t)){
-   				int beginOffset = t.getBegin();
-   				int endOffset = t.getEnd();
    				String value = t.getTimexValue();
-   				String type = t.getTimexType();
    				int sentence = t.getSentId();
-   				wrapper.addTimex(sentence,beginOffset, endOffset, value);
+   				wrapper.addTimex(sentence, value);
    			}
    		}
 
