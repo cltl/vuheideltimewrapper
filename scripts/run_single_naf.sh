@@ -9,5 +9,4 @@ fi
 
 base=$(basename $f)
 echo "File to process: $base"
-cat $f | java -Xmx2000m -cp ../target/vu-heideltime-wrapper-1.0-jar-with-dependencies.jar;../lib/de.unihd.dbs.heideltime.standalone.jar  vu.cltl.vuheideltimewrapper.CLI --mapping ../lib/alpino-to-treetagger.csv --config ../conf/config.props
-
+java -Xmx2000m -cp ../target/vu-heideltime-wrapper-1.0-jar-with-dependencies.jar  vu.cltl.vuheideltimewrapper.CLI --naf-file $1 --mapping ../lib/alpino-to-treetagger.csv --config ../conf/config.props

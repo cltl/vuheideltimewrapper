@@ -72,10 +72,7 @@ public class CLI {
         processArgs(args);
         if (STREAM) {
             /// input and output stream
-                KafSaxParser kafSaxParser = new KafSaxParser();
-                kafSaxParser.parseFile(System.in);
-                processNafStream(System.in);
-                kafSaxParser.writeNafToStream(System.out);
+              processNafStream(System.in);
         }
         else {
             if (!folder.isEmpty()) {
