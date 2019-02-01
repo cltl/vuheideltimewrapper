@@ -76,6 +76,11 @@
            <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+
+<!--          <repository>
+              <id>heideltime-local-dependency-repo</id>
+              <url>file://${basedir}/repo</url>
+          </repository>-->
       </repositories>
 
 <build>

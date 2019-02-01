@@ -146,16 +146,7 @@ public class VuNafHeideltime {
    													.getClassLoader()
    													.getResource(
    															Config.get(Config.TYPESYSTEMHOME)))),
-
-                    UIMAFramework
-                       							.getXMLParser()
-                       							.parseTypeSystemDescription(
-                       									new XMLInputSource(
-                       											this.getClass()
-                       													.getClassLoader()
-                       													.getResource(
-                       															Config.get(Config.TYPESYSTEMHOME)))),
-                 /*  Piek: this initialisation does not work. It gives a null pointer exception during run time. I replaced it by TYPESYSTEMHOME which isnow in here twice.
+					/*  Piek: this initialisation does not work. It gives a null pointer exception during run time. I replaced it by TYPESYSTEMHOME which isnow in here twice.
                      Doing this no longer raises the exeption.
                      UIMAFramework
    							.getXMLParser()
@@ -374,9 +365,12 @@ public class VuNafHeideltime {
    		for(Integer begin : forwardTimexes.navigableKeySet()) {
    			Timex3 t = (Timex3) forwardTimexes.get(begin);
    			if (!timexesToSkip.contains(t)){
+   			    int beginOffset = t.getBegin();
+                int endOffset = t.getEnd();
    				String value = t.getTimexValue();
+                String type = t.getTimexType();
    				int sentence = t.getSentId();
-   				wrapper.addTimex(sentence, value);
+   				wrapper.addTimex(sentence, beginOffset, endOffset, value, type);
    			}
    		}
 

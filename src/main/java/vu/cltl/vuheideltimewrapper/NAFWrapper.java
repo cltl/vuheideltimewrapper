@@ -8,7 +8,6 @@ import eu.kyotoproject.kaf.KafTerm;
 import eu.kyotoproject.kaf.KafTimex;
 import eu.kyotoproject.kaf.KafWordForm;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
-import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
 
 import java.io.BufferedReader;
@@ -101,7 +100,6 @@ public class NAFWrapper{
 
    	}
 
-	
 	private String getPOS (KafTerm term){
 		String pos = "";
 		String morpho = term.getMorphofeat();
@@ -155,8 +153,12 @@ public class NAFWrapper{
 		    }
 		    KafTimex time = new KafTimex();
 		    String dctToString = getTimexFormat(cal);
+		    String timeId = "tx"+(kaf.kafTimexLayer.size()+1);
 		    time.setValue(dctToString);
+		    time.setType("DATE");
 		    time.setFunctionInDocument("CREATION_TIME");
+		    time.setId(timeId);
+		    kaf.kafTimexLayer.add(time);
 
 		} catch (ParseException e) {
 			e.printStackTrace();
@@ -192,45 +194,56 @@ public class NAFWrapper{
 
 	public String getText(){
 		String text = "";
+
 		for (int i = 0; i < kaf.kafWordFormList.size(); i++) {
 		    KafWordForm wordForm = kaf.kafWordFormList.get(i);
-			text += " ";
+		    while (text.length()< Integer.parseInt(wordForm.getCharOffset())) {
+		    	/// add white space padding till text matches the next offset word position
+		    	text+=" ";
+			}
 		    text += wordForm.getWf();
 		}
-		return text;
+		return text.trim();
 	}
 	
 	/**
 	 * Method that gets called to process the documents' jcas objects
 	 */
 	public void process(JCas jcas) throws AnalysisEngineProcessException {
-
-		// grab the document text
-		String docText = jcas.getDocumentText();
+		Integer offset = 0; // a cursor of sorts to keep up with the position in the document text
+		int nsent = 0;
 		sentenceMap = getSentences();
-        //System.out.println("sentenceMap.size() = " + sentenceMap.size());
-        for (Map.Entry<String, ArrayList<KafWordForm>> entry : sentenceMap.entrySet()) {
-			//System.out.println("Key = " + entry.getKey() +
-			//		", Value = " + entry.getValue());
-			ArrayList<KafWordForm> sentence = entry.getValue();
-			for (int i = 0; i < sentence.size(); i++) {
-				KafWordForm kafWordForm = sentence.get(i);
-				int offsetBegin = Integer.parseInt(kafWordForm.getCharOffset());
-				int offsetLength = Integer.parseInt(kafWordForm.getCharLength());
-				KafTerm kafTerm = kaf.getTermForWordId(kafWordForm.getWid());
-				Token t = new Token(jcas);
-				t.setPos(kafTerm.getPos());
-				t.setBegin(offsetBegin);
-				t.setEnd(offsetBegin+offsetLength);
-				t.addToIndexes();
+		//// we need to iterate over the sentences in the right order
+		for (int s = 0; s <= sentenceMap.size(); s++) {
+			String sentenceId = new Integer(s).toString();
+			if (sentenceMap.containsKey(sentenceId)) {
+				Sentence sentence = new Sentence(jcas);
+				sentence.setSentenceId(s);
+				sentence.setBegin(offset);
+				ArrayList<KafWordForm> nafSentence = sentenceMap.get(sentenceId);
+				for (int i = 0; i < nafSentence.size(); i++) {
+					KafWordForm kafWordForm = nafSentence.get(i);
+					int offsetBegin = Integer.parseInt(kafWordForm.getCharOffset());
+					int offsetLength = Integer.parseInt(kafWordForm.getCharLength());
+					KafTerm kafTerm = kaf.getTermForWordId(kafWordForm.getWid());
+					Token t = new Token(jcas);
+					t.setPos(kafTerm.getPos());
+					t.setBegin(offsetBegin);
+					t.setEnd(offsetBegin+offsetLength);
+					offset = t.getEnd();
+					t.addToIndexes();
+				}
+				sentence.setEnd(offset);
+				sentence.addToIndexes();
+				//System.err.println("Sentence: " + sentence.getBegin() + ":" + sentence.getEnd() + " = " + sentence.getCoveredText());
 			}
 		}
 
 		// iterate over sentences in this document
 
 		
-		// TODO: DEBUG
-		FSIterator fsi = jcas.getAnnotationIndex(Sentence.type).iterator();
+		// THIS CODE IS FROM IXA CHECKING THEIR TOKENIZATION LAYER
+/*		FSIterator fsi = jcas.getAnnotationIndex(Sentence.type).iterator();
 		while(fsi.hasNext()) {
 			Sentence s = (Sentence) fsi.next();
 			if(s.getBegin() < 0 || s.getEnd() < 0) {
@@ -247,17 +260,31 @@ public class NAFWrapper{
 				System.err.println("Token: " + t.getBegin() + ":" + t.getEnd());
 				System.exit(-1);
 			}
-		}
+		}*/
 	}
 	
-	public void addTimex(int sentence, String value){
-		KafTimex time = new KafTimex();
-		time.setValue(value);
+	public void addTimex(int sentence, int begin, int end, String value, String type){
+		KafTimex timeEx = new KafTimex();
+		timeEx.setValue(value);
+		timeEx.setType(type);
+		String timexId = "tx"+(kaf.kafTimexLayer.size()+1);
+		timeEx.setId(timexId);
 		ArrayList<KafWordForm> sentenceArray = sentenceMap.get(new Integer(sentence).toString());
         for (int i = 0; i < sentenceArray.size(); i++) {
             KafWordForm kafWordForm = sentenceArray.get(i);
-            time.addSpan(kafWordForm.getWid());
+            int offset = Integer.parseInt(kafWordForm.getCharOffset());
+			if (offset >= begin && offset < end){
+				timeEx.addSpan(kafWordForm.getWid());
+			}
+			else{
+				//check if the identified timex is a substring of the wf
+				int endoff = offset + Integer.parseInt(kafWordForm.getCharLength());
+				if (offset < begin && endoff >= end){
+					timeEx.addSpan(kafWordForm.getWid());
+				}
+			}
         }
+        this.kaf.kafTimexLayer.add(timeEx);
 	}
 	
     private String getTimexFormat(Calendar cal){
