@@ -9,6 +9,8 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 
 public class CLI {
@@ -38,6 +40,7 @@ public class CLI {
 
     static String folder = "";
     static String pathToNafFile = "";
+    private static Logger logger = Logger.getLogger(CLI.class.getName());
 
     static public void processArgs (String [] args) {
         for (int i = 0; i < args.length; i++) {
@@ -168,9 +171,12 @@ public class CLI {
         }
         try {
             String lang = kafSaxParser.getLanguage();
-            System.out.println("lang = " + lang);
-            System.out.println("mappingFile = " + mappingFile);
-            System.out.println("configFile = " + configFile);
+//            System.out.println("lang = " + lang);
+//            System.out.println("mappingFile = " + mappingFile);
+//            System.out.println("configFile = " + configFile);
+            logger.log(Level.INFO,"\tlang = " + lang
+                    + "\n\tmappingFile = " + mappingFile
+                    + "\n\tconfigFile = " + configFile);
 
             VuNafHeideltime time = new VuNafHeideltime(lang, mappingFile, configFile);
 
