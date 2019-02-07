@@ -57,6 +57,12 @@
             <artifactId>heideltime</artifactId>
             <version>2.2.1</version>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.3.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
       <repositories>
@@ -74,8 +80,8 @@
       <artifactId>maven-compiler-plugin</artifactId>
       <version>2.0</version>
       <configuration>
-        <source>1.7</source>
-        <target>1.7</target>
+        <source>1.8</source>
+        <target>1.8</target>
         <debug>false</debug>
       </configuration>
     </plugin>

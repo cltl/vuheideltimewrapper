@@ -1,6 +1,7 @@
 package vu.cltl.vuheideltimewrapper;
 
 
+import de.unihd.dbs.heideltime.standalone.exceptions.DocumentCreationTimeMissingException;
 import de.unihd.dbs.uima.types.heideltime.Sentence;
 import de.unihd.dbs.uima.types.heideltime.Token;
 import eu.kyotoproject.kaf.KafSaxParser;
@@ -17,6 +18,8 @@ import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,7 +29,9 @@ public class NAFWrapper{
 	private HashMap<String,HashSet<String>> exceptions;
 	private HashMap<String, ArrayList<KafWordForm>> sentenceMap;
 	final String DELIMITER = "\t";
-	
+	private static Logger logger = Logger.getLogger(CLI.class.getName());
+
+
 	NAFWrapper(KafSaxParser kaf, String mappingFile){
 		this.kaf = kaf;
 		sentenceMap = new HashMap<>();
@@ -134,7 +139,7 @@ public class NAFWrapper{
 	
 
 	@SuppressWarnings("finally")
-	public Date creationTime(){
+	public Date creationTime(boolean timeCheck){
 		//SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-ddThh:mm:ssz");
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 		
@@ -144,13 +149,16 @@ public class NAFWrapper{
 		Date date = cal.getTime();
 		try {
 		    String dct = kaf.getKafMetaData().getCreationtime();
-		    if ( dct != null){
-			date = format.parse(dct);
-			cal.setTime(date);
-		    }
-		    else{
-			date = cal.getTime();
-		    }
+		    if ( dct != null && ! dct.equals("")){
+				date = format.parse(dct);
+				cal.setTime(date);
+		    } else if (timeCheck)
+		    	date = null;
+		    else
+		    	logger.log(Level.WARNING, "The input document does not contain a creation time! " +
+						"The wrapper will use the current time instead, but " +
+						"time expressions may be misinterpreted as a result.");
+
 		    KafTimex time = new KafTimex();
 		    String dctToString = getTimexFormat(cal);
 		    String timeId = "tx"+(kaf.kafTimexLayer.size()+1);

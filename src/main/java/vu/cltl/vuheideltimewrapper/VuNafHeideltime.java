@@ -69,6 +69,8 @@ public class VuNafHeideltime {
 
    	private String mappingFile;
 
+   	private boolean timeCheck;
+
    	/**
    	 * Logging engine
    	 */
@@ -82,10 +84,11 @@ public class VuNafHeideltime {
    	public VuNafHeideltime() {
    	}
 
-   	/** Constructor with KAFDocument. Used only for ixa-pipes purposes
+   	/**
+	 * Constructor with KAFDocument.
    	 *
    	 */
-   	public VuNafHeideltime(String lang, String mappingFile, String configPath){
+   	public VuNafHeideltime(String lang, String mappingFile, String configPath, boolean noTimeCheck){
    		if (lang.equals("es")){
    			this.language = Language.SPANISH;
    		}
@@ -99,6 +102,7 @@ public class VuNafHeideltime {
    		this.outputType = OutputType.TIMEML;
 
    		this.mappingFile = mappingFile;
+		this.timeCheck = ! noTimeCheck;
 
    		// set doIntervalTagging flag
    		this.doIntervalTagging = true;
@@ -280,7 +284,8 @@ public class VuNafHeideltime {
    		// Process jcas object -----------
    		try {
    			logger.log(Level.FINER, "Establishing preconditions...");
-   			Date documentCreationTime = wrapper.creationTime();
+
+   			Date documentCreationTime = wrapper.creationTime(timeCheck);
    			provideDocumentCreationTime(jcas, documentCreationTime);
    			establishHeidelTimePreconditions(jcas,wrapper);
    			logger.log(Level.FINER, "Preconditions established");
@@ -288,7 +293,9 @@ public class VuNafHeideltime {
    			heidelTime.process(jcas);
 
    			logger.log(Level.INFO, "Processing finished");
-   		} catch (Exception e) {
+   		} catch (DocumentCreationTimeMissingException e) {
+   		    throw e;
+        } catch (Exception e) {
    			e.printStackTrace();
    			logger.log(Level.WARNING, "Processing aborted due to errors");
    		}

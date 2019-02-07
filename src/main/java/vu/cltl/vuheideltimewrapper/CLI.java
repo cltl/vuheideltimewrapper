@@ -1,5 +1,6 @@
 package vu.cltl.vuheideltimewrapper;
 
+import de.unihd.dbs.heideltime.standalone.exceptions.DocumentCreationTimeMissingException;
 import eu.kyotoproject.kaf.KafSaxParser;
 import eu.kyotoproject.kaf.KafTimex;
 import eu.kyotoproject.kaf.LP;
@@ -29,6 +30,7 @@ public class CLI {
                              +  "\n--mapping        path to the mapping file"
                              +  "\n--config         path to the config file"
                              +  "\n--language       language"
+                             +  "\n--no-time-check  accepts input files with no creation time"
                             ;
     static boolean STREAM = false;
     static boolean REPLACE = false;
@@ -37,6 +39,7 @@ public class CLI {
     static String mappingFile = "";
     static String configFile = "";
     static String language = "";
+    static boolean noTimeCheck = false;
 
     static String folder = "";
     static String pathToNafFile = "";
@@ -63,6 +66,8 @@ public class CLI {
                 REPLACE = true;
             } else if (arg.equalsIgnoreCase("--stream")) {
                 STREAM = true;
+            } else if (arg.equals("--no-time-check")) {
+                noTimeCheck = true;
             }
         }
     }
@@ -178,12 +183,15 @@ public class CLI {
                     + "\n\tmappingFile = " + mappingFile
                     + "\n\tconfigFile = " + configFile);
 
-            VuNafHeideltime time = new VuNafHeideltime(lang, mappingFile, configFile);
+            VuNafHeideltime time = new VuNafHeideltime(lang, mappingFile, configFile, noTimeCheck);
 
             time.process(kafSaxParser);
 
-        }
-        catch (Exception e){
+        } catch (DocumentCreationTimeMissingException e) {
+            System.err.println("VuNafHeideltime failed because of missing document creation time.");
+            e.printStackTrace();
+//            System.exit(1);
+        } catch (Exception e){
               System.err.println("VuNafHeidelTime failed: ");
               e.printStackTrace();
         }
