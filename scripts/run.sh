@@ -20,4 +20,4 @@ fi
 
 workdir=$(cd $(dirname "${BASH_SOURCE[0]}") && cd .. && pwd)
 
-java -jar ${workdir}/target/vuheideltimewrapper-1.1.jar --input $in --output $out
+java -jar ${workdir}/target/vu-heideltime-wrapper-1.1.jar --input $in --output $out

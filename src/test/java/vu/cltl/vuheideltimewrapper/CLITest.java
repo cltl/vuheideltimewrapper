@@ -2,6 +2,7 @@ package vu.cltl.vuheideltimewrapper;
 
 
 import eu.kyotoproject.kaf.KafSaxParser;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.nio.file.Files;
@@ -11,14 +12,17 @@ import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static vu.cltl.vuheideltimewrapper.CLI.loadConfig;
-import static vu.cltl.vuheideltimewrapper.CLI.processNafFile;
+import static vu.cltl.vuheideltimewrapper.CLI.*;
 
 public class CLITest {
     String inputFile = "example/wikinews_1173_nl.input.naf";
     String outputFile = "example/out/wikinews_1173_nl.input.naf";
     String config = "conf/wrapper.props";
     Properties props = loadConfig(config);
+    @Before
+    public void createOutDir() {
+        createPath("example/out");
+    }
 
     @Test
     public void testRun() {
