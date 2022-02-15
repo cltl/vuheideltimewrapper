@@ -1,0 +1,11 @@
+# -----------------------------------------
+#     Wrapper properties
+# -----------------------------------------
+
+# --- Resources ---------------------------
+mapping = lib/alpino-to-treetagger.csv
+heideltime_conf = conf/config.props
+
+# --- Naf header --------------------------
+show_host = false
+show_begin_end_time_stamps = false

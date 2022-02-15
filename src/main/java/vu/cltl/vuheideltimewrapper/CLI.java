@@ -1,16 +1,21 @@
 package vu.cltl.vuheideltimewrapper;
 
 import eu.kyotoproject.kaf.KafSaxParser;
-import eu.kyotoproject.kaf.KafTimex;
 import eu.kyotoproject.kaf.LP;
+import org.apache.commons.cli.*;
 import org.apache.tools.bzip2.CBZip2InputStream;
 
 import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
 public class CLI {
@@ -18,97 +23,87 @@ public class CLI {
     static final String layer = "timex";
     static final String name = "vua-heideltime-wrapper";
     static final String version = "1.0";
-
-    static final String usage = "\nCalls Heideltime to add timex layer to NAF"
-                             +  "\n--naf-file       path to a naf input file"
-                             +  "\n--naf-folder     path to a folder with naf input files, also specify the extension"
-                             +  "\n--extension-in   extension of the input naf files in the folder"
-                             +  "\n--extension-out  extension of the output naf files in the folder"
-                             +  "\n--replace        replace existing timex layer"
-                             +  "\n--stream         NAF text stream as input"
-                             +  "\n--mapping        path to the mapping file"
-                             +  "\n--config         path to the config file"
-                             +  "\n--language       language"
-                            ;
-    static boolean STREAM = false;
-    static boolean REPLACE = false;
-    static String extensionIn = "";
-    static String extensionOut = ".tmx.naf";
-    static String mappingFile = "";
-    static String configFile = "";
-    static String language = "";
-
-    static String folder = "";
-    static String pathToNafFile = "";
     private static Logger logger = Logger.getLogger(CLI.class.getName());
+    private static String CONFIG = "conf/wrapper.props";
 
-    static public void processArgs (String [] args) {
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if (arg.equals("--naf-file") && args.length > (i + 1)) {
-                pathToNafFile = args[i + 1];
-            } else if (arg.equals("--naf-folder") && args.length > (i + 1)) {
-                folder = args[i + 1];
-            } else if (arg.equals("--extension-in") && args.length > (i + 1)) {
-                extensionIn = args[i + 1];
-            } else if (arg.equals("--extension-out") && args.length > (i + 1)) {
-                extensionOut = args[i + 1];
-            }else if (arg.equals("--mapping") && args.length > (i + 1)) {
-                mappingFile = args[i + 1];
-            }else if (arg.equals("--config") && args.length > (i + 1)) {
-                configFile = args[i + 1];
-            }else if (arg.equals("--language") && args.length > (i + 1)) {
-                language = args[i + 1];
-            } else if (arg.equalsIgnoreCase("--replace")) {
-                REPLACE = true;
-            } else if (arg.equalsIgnoreCase("--stream")) {
-                STREAM = true;
-            }
-        }
+    static private Options getOptions() {
+        Options options = new Options();
+        options.addOption(new Option("i", "input", true, "input naf file/folder"));
+        options.addOption(new Option("o", "output", true, "output naf file/folder"));
+        options.addOption(new Option("s", "stream", false, "input stream"));
+        options.addOption(new Option("c", "config", true, "wrapper config"));
+        options.addOption(new Option("r", "replace", false, "replace existing timex layer"));
+        return options;
     }
-    static String testargs = "--naf-file /Code/vu/newsreader/vuheideltimewrapper/example/wikinews_1173_nl.input.naf --mapping /Code/vu/newsreader/vuheideltimewrapper/lib/alpino-to-treetagger.csv --config /Code/vu/newsreader/vuheideltimewrapper/conf/config.props";
+
+    private static void usage(Options options) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.printHelp( "VU Heideltime wrapper", options);
+        System.exit(0);
+    }
+
+    private static boolean validOptions(CommandLine cmd) {
+        if (! (cmd.hasOption('i') || cmd.hasOption('o') || cmd.hasOption('s'))) {
+            System.out.println("Missing input file/folder/stream");
+            return false;
+        }
+        return true;
+    }
 
     static public void main (String [] args) {
-        if (args.length == 0) {
-            args = testargs.split(" ");
-        }
-        processArgs(args);
-        if (STREAM) {
-            /// input and output stream
-              processNafStream(System.in);
-        }
-        else {
-            if (!folder.isEmpty()) {
-                processNafFolder(new File(folder), extensionIn);
-            } else {
-                processNafFile(pathToNafFile);
-            }
+        Options options = getOptions();
+        CommandLineParser parser = new DefaultParser();
+        try {
+            CommandLine cmd = parser.parse(options, args);
+            if (! validOptions(cmd))
+                usage(options);
+            String configFile = cmd.getOptionValue('c', CONFIG);
+            Properties props = loadConfig(configFile);
+            if (cmd.hasOption('s'))
+                processNafStream(System.in, props, cmd.hasOption('r'));
+            else
+                loop(cmd.getOptionValue('i'), cmd.getOptionValue('o'), cmd.hasOption('r'), props);
+
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
     }
 
+    protected static Properties loadConfig(String configFile) {
+        Properties props = new Properties();
+        try {
+            FileReader reader = new FileReader(configFile);
+            props.load(reader);
+            reader.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return props;
+    }
 
-
-    static public void processNafStream (InputStream nafStream) {
+    static public void processNafStream(InputStream nafStream, Properties props, boolean replace) {
         KafSaxParser kafSaxParser = new KafSaxParser();
         kafSaxParser.parseFile(nafStream);
-        runHeildelTime(kafSaxParser);
+        runHeildelTime(kafSaxParser, replace, props);
         kafSaxParser.writeNafToStream(System.out);
     }
 
-    static public void processNafFile (String pathToNafFile) {
+    static public void processNafFile(String inputFile, String outFile, boolean replace, Properties props) {
         KafSaxParser kafSaxParser = new KafSaxParser();
-        if (pathToNafFile.toLowerCase().endsWith(".gz")) {
+        if (inputFile.toLowerCase().endsWith(".gz")) {
             try {
-                InputStream fileStream = new FileInputStream(pathToNafFile);
+                InputStream fileStream = new FileInputStream(inputFile);
                 InputStream gzipStream = new GZIPInputStream(fileStream);
                 kafSaxParser.parseFile(gzipStream);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        else if (pathToNafFile.toLowerCase().endsWith(".bz2")) {
+        else if (inputFile.toLowerCase().endsWith(".bz2")) {
             try {
-                InputStream fileStream = new FileInputStream(pathToNafFile);
+                InputStream fileStream = new FileInputStream(inputFile);
                 InputStream gzipStream = new CBZip2InputStream(fileStream);
                 kafSaxParser.parseFile(gzipStream);
             } catch (IOException e) {
@@ -116,12 +111,11 @@ public class CLI {
             }
         }
         else {
-            kafSaxParser.parseFile(pathToNafFile);
+            kafSaxParser.parseFile(inputFile);
         }
-        runHeildelTime(kafSaxParser);
+        runHeildelTime(kafSaxParser, replace, props);
         try {
-            String filePath = pathToNafFile.substring(0,pathToNafFile.lastIndexOf("."));
-            FileOutputStream fos = new FileOutputStream(filePath+extensionOut);
+            FileOutputStream fos = new FileOutputStream(outFile);
             kafSaxParser.writeNafToStream(fos);
             fos.close();
         } catch (IOException e) {
@@ -129,75 +123,70 @@ public class CLI {
         }
     }
 
-    static public void processNafFolder (File pathToNafFolder, String extension) {
-        ArrayList<File> files = makeRecursiveFileList(pathToNafFolder, extension);
-        for (int i = 0; i < files.size(); i++) {
-            File file = files.get(i);
-            processNafFile(file.getAbsolutePath());
+    public static void loop(String indir, String outdir, boolean replace, Properties props)  {
+        createPath(outdir);
+        try (Stream<Path> paths = Files.walk(Paths.get(indir))) {
+            paths.filter(p -> Files.isRegularFile(p)).filter(p -> {
+                try {
+                    return ! Files.isHidden(p);
+                } catch (IOException e) {
+                    return false;
+                }}).forEach(f -> processNafFile(f.toString(), outputFileName(outdir, f), replace, props));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    static public ArrayList<File> makeRecursiveFileList(File inputFile, String theFilter) {
-            ArrayList<File> acceptedFileList = new ArrayList<File>();
-            File[] theFileList = null;
-            if ((inputFile.canRead())) {
-                theFileList = inputFile.listFiles();
-                for (int i = 0; i < theFileList.length; i++) {
-                    File newFile = theFileList[i];
-                    if (newFile.isDirectory()) {
-                        ArrayList<File> nextFileList = makeRecursiveFileList(newFile, theFilter);
-                        acceptedFileList.addAll(nextFileList);
-                    } else {
-                        if (newFile.getName().endsWith(theFilter)) {
-                            acceptedFileList.add(newFile);
-                        }
-                    }
-                }
-            } else {
-                System.out.println("Cannot access file:" + inputFile + "#");
-                if (!inputFile.exists()) {
-                    System.out.println("File/folder does not exist!");
-                }
+    private static String outputFileName(String outDir, Path f) {
+        return Paths.get(outDir, f.getFileName().toString()).toString();
+    }
+
+    public static void createPath(String outdir) {
+        Path dirpath = Paths.get(outdir);
+        if (!Files.exists(dirpath)) {
+            try {
+                Files.createDirectories(Paths.get(outdir));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            return acceptedFileList;
+        }
     }
 
-    static void runHeildelTime (KafSaxParser kafSaxParser) {
+    static void runHeildelTime(KafSaxParser kafSaxParser, boolean replace, Properties props) {
 
-        String strBeginDate = eu.kyotoproject.util.DateUtil.createTimestamp();
-        String strEndDate = null;
-        if (REPLACE) {
-           kafSaxParser.kafTimexLayer = new ArrayList<KafTimex>();
-        }
+        String strTimeStamp = eu.kyotoproject.util.DateUtil.createTimestamp();
+        boolean showBeginEndStamps = Boolean.parseBoolean(props.getProperty("show_begin_and_end_stamps"));
+        String strBeginDate = showBeginEndStamps ? strTimeStamp: null;
+        if (replace)
+           kafSaxParser.kafTimexLayer = new ArrayList<>();
+
         try {
             String lang = kafSaxParser.getLanguage();
-//            System.out.println("lang = " + lang);
-//            System.out.println("mappingFile = " + mappingFile);
-//            System.out.println("configFile = " + configFile);
             logger.log(Level.INFO,"\tlang = " + lang
-                    + "\n\tmappingFile = " + mappingFile
-                    + "\n\tconfigFile = " + configFile);
+                    + "\n\tmappingFile = " + props.getProperty("mapping")
+                    + "\n\tconfigFile = " + props.getProperty("heideltime_conf"));
 
-            VuNafHeideltime time = new VuNafHeideltime(lang, mappingFile, configFile);
+            VuNafHeideltime time = new VuNafHeideltime(lang, props.getProperty("mapping"), props.getProperty("heideltime_conf"));
 
             time.process(kafSaxParser);
-
         }
         catch (Exception e){
               System.err.println("VuNafHeidelTime failed: ");
               e.printStackTrace();
         }
-        strEndDate = eu.kyotoproject.util.DateUtil.createTimestamp();
-        String host = "";
-        try {
-           host = InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-           e.printStackTrace();
-        }
-        LP lp = new LP(name,version, strBeginDate, strBeginDate, strEndDate, host);
+
+        String strEndDate = showBeginEndStamps ? eu.kyotoproject.util.DateUtil.createTimestamp() : null;
+        String host = Boolean.parseBoolean(props.getProperty("show_host")) ? getHost(): null;
+        LP lp = new LP(name, version, strTimeStamp, strBeginDate, strEndDate, host);
         kafSaxParser.getKafMetaData().addLayer(layer, lp);
     }
 
-
-
+    private static String getHost() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }
